@@ -1,0 +1,54 @@
+export enum UserRole {
+  PATIENT = 'PATIENT',
+  PROVIDER = 'PROVIDER',
+  ADMIN = 'ADMIN',
+}
+
+export enum ProviderType {
+  DOCTOR = 'DOCTOR',
+  HOSPITAL = 'HOSPITAL',
+  DIAGNOSTIC_CENTER = 'DIAGNOSTIC_CENTER',
+  HOME_CARE = 'HOME_CARE',
+}
+
+export enum ServiceType {
+  CONSULTATION = 'CONSULTATION',
+  DIAGNOSTIC = 'DIAGNOSTIC',
+  HOME_NURSING = 'HOME_NURSING',
+  PHYSIOTHERAPY = 'PHYSIOTHERAPY',
+  HEALTH_CHECKUP = 'HEALTH_CHECKUP',
+  SECOND_OPINION = 'SECOND_OPINION',
+}
+
+export enum SlotStatus {
+  AVAILABLE = 'AVAILABLE',
+  HELD = 'HELD',
+  BOOKED = 'BOOKED',
+  BLOCKED = 'BLOCKED',
+}
+
+export enum AppointmentStatus {
+  HELD = 'HELD',
+  CONFIRMED = 'CONFIRMED',
+  CANCELLED = 'CANCELLED',
+  COMPLETED = 'COMPLETED',
+}
+
+export enum AppointmentType {
+  IN_PERSON = 'IN_PERSON',
+  VIDEO_CONSULT = 'VIDEO_CONSULT',
+  HOME_VISIT = 'HOME_VISIT',
+}
+
+export enum CareJourneyStatus {
+  ACTIVE = 'ACTIVE',
+  COMPLETED = 'COMPLETED',
+  PAUSED = 'PAUSED',
+}
+
+export enum CareEventType {
+  CONSULTATION = 'CONSULTATION',
+  DIAGNOSTIC_TEST = 'DIAGNOSTIC_TEST',
+  PRESCRIPTION = 'PRESCRIPTION',
+  FOLLOW_UP = 'FOLLOW_UP',
+}

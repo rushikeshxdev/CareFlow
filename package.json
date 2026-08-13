@@ -1,0 +1,33 @@
+{
+  "name": "careflow-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CareFlow - AI-Powered Healthcare Care Discovery and Appointment Booking Platform",
+  "workspaces": [
+    "apps/*",
+    "backend/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:backend": "npm run start:dev --workspace=backend/api",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "dev:ai": "cd services/ai && uvicorn main:app --reload --port 8000",
+    "build:shared": "npm run build --workspace=packages/shared",
+    "build:backend": "npm run build --workspace=backend/api",
+    "build:web": "npm run build --workspace=apps/web",
+    "db:generate": "npx prisma generate",
+    "db:push": "npx prisma db push",
+    "db:seed": "npx prisma db seed",
+    "db:studio": "npx prisma studio",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "tsc --noEmit --composite false"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
+    "prettier": "^3.2.5",
+    "typescript": "^5.3.3"
+  },
+  "prisma": {
+    "seed": "ts-node -O \"{\\\"module\\\":\\\"CommonJS\\\"}\" prisma/seed.ts"
+  }
+}

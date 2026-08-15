@@ -42,7 +42,7 @@ export class HealthController {
   }
 
   @Get('dependencies')
-  @ApiOperation({ summary: 'External dependencies health check (FastAPI AI Service)' })
+  @ApiOperation({ summary: 'External dependencies health check (FastAPI AI Service, BullMQ Queues)' })
   @ApiResponse({ status: 200, description: 'Dependency status report' })
   async checkDependencies() {
     const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:8000';
@@ -59,12 +59,19 @@ export class HealthController {
       aiStatus = 'unreachable';
     }
 
+    const redisPing = await this.redis.ping();
+    const queueStatus = redisPing ? 'healthy' : 'degraded';
+
     return {
       timestamp: new Date().toISOString(),
       dependencies: {
         aiService: {
           url: aiServiceUrl,
           status: aiStatus,
+        },
+        queues: {
+          backend: 'BullMQ / Redis',
+          status: queueStatus,
         },
       },
     };

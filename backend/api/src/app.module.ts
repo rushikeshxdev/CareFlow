@@ -13,12 +13,21 @@ import { CareJourneysModule } from './modules/care-journeys/care-journeys.module
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AiOrchestrationModule } from './modules/ai-orchestration/ai-orchestration.module';
 
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env.local', '.env'],
     }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 100,
+      },
+    ]),
     HealthModule,
     AuthModule,
     UsersModule,
@@ -31,6 +40,12 @@ import { AiOrchestrationModule } from './modules/ai-orchestration/ai-orchestrati
     CareJourneysModule,
     NotificationsModule,
     AiOrchestrationModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule {}

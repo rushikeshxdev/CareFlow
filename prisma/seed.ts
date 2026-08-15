@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { PrismaClient, UserRole, ProviderType, ServiceType, SlotStatus } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
@@ -7,6 +8,7 @@ async function main() {
   console.log('🌱 Starting CareFlow Database Seeder...');
 
   // Clean existing data
+  await prisma.refreshToken.deleteMany();
   await prisma.auditLog.deleteMany();
   await prisma.notification.deleteMany();
   await prisma.aIMessage.deleteMany();
@@ -25,12 +27,14 @@ async function main() {
 
   console.log('🧹 Cleaned existing database tables');
 
-  // 1. Create Demo Users & Patients
+  // 1. Create Demo Users & Patients (LOCAL DEVELOPMENT ONLY)
+  const defaultDevPasswordHash = bcrypt.hashSync('Password123!', 10);
+
   const demoPatientUser = await prisma.user.create({
     data: {
       name: 'Sarah Jenkins',
       email: 'sarah.jenkins@example.com',
-      passwordHash: '$2b$10$e7xX3N8...dummyhashforprototype',
+      passwordHash: defaultDevPasswordHash,
       role: UserRole.PATIENT,
       patient: {
         create: {

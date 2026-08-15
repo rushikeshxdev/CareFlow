@@ -2,13 +2,31 @@ import { ProviderFilterQuery, AIIntentAnalysisRequest } from '@careflow/shared';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
+let authToken: string | null = null;
+
+export function setAuthToken(token: string | null) {
+  authToken = token;
+}
+
+export function getAuthToken(): string | null {
+  return authToken;
+}
+
 async function fetchJson<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
+  
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options?.headers as Record<string, string>),
+  };
+
+  if (authToken) {
+    headers['Authorization'] = `Bearer ${authToken}`;
+  }
+
   const response = await fetch(url, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
+    credentials: 'include', // Include HttpOnly cookies for auth refresh token
+    headers,
     ...options,
   });
 
@@ -28,6 +46,21 @@ async function fetchJson<T>(endpoint: string, options?: RequestInit): Promise<T>
   }
 
   return response.json();
+}
+
+export interface UserItem {
+  id: string;
+  name: string;
+  email: string;
+  role: 'PATIENT' | 'PROVIDER' | 'ADMIN';
+  patientId: string | null;
+}
+
+export interface AuthResponse {
+  message?: string;
+  user?: UserItem;
+  accessToken?: string;
+  refreshToken?: string;
 }
 
 export interface ProviderItem {
@@ -102,6 +135,37 @@ export interface AppointmentRecord {
 }
 
 export const apiClient = {
+  // Auth endpoints
+  register: async (payload: { name: string; email: string; password: string }): Promise<AuthResponse> => {
+    return fetchJson<AuthResponse>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  login: async (payload: { email: string; password: string }): Promise<AuthResponse> => {
+    return fetchJson<AuthResponse>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  refresh: async (): Promise<{ accessToken: string; refreshToken?: string }> => {
+    return fetchJson<{ accessToken: string; refreshToken?: string }>('/auth/refresh', {
+      method: 'POST',
+    });
+  },
+
+  logout: async (): Promise<{ message: string }> => {
+    return fetchJson<{ message: string }>('/auth/logout', {
+      method: 'POST',
+    });
+  },
+
+  getMe: async (): Promise<UserItem> => {
+    return fetchJson<UserItem>('/auth/me');
+  },
+
   // Provider endpoints
   getProviders: async (query?: ProviderFilterQuery & { search?: string }): Promise<ProviderItem[]> => {
     const params = new URLSearchParams();
@@ -143,7 +207,7 @@ export const apiClient = {
   },
 
   // Appointment & Slot endpoints
-  holdSlot: async (payload: { slotId: string; patientId: string }): Promise<HoldSlotResponse> => {
+  holdSlot: async (payload: { slotId: string; patientId?: string }): Promise<HoldSlotResponse> => {
     return fetchJson<HoldSlotResponse>('/appointments/hold', {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -151,7 +215,7 @@ export const apiClient = {
   },
 
   createAppointment: async (payload: {
-    patientId: string;
+    patientId?: string;
     providerId: string;
     slotId: string;
     serviceId: string;

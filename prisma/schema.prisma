@@ -79,6 +79,7 @@ model User {
   conversations AIConversation[]
   notifications Notification[]
   auditLogs     AuditLog[]
+  refreshTokens RefreshToken[]
 
   @@map("users")
 }
@@ -307,3 +308,17 @@ model AuditLog {
 
   @@map("audit_logs")
 }
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+

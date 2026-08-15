@@ -5,9 +5,11 @@ import { useRouter } from 'next/navigation';
 import { Star, MapPin, Calendar, Clock, ArrowRight, Activity, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { apiClient, ProviderItem, AvailabilitySlotItem } from '@/lib/api';
 import { sessionManager } from '@/lib/session';
+import { useAuth } from '@/context/auth-context';
 
 export default function ProviderDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
+  const { user } = useAuth();
   const [provider, setProvider] = useState<ProviderItem | null>(null);
   const [slots, setSlots] = useState<AvailabilitySlotItem[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
@@ -46,8 +48,14 @@ export default function ProviderDetailPage({ params }: { params: { id: string } 
     };
   }, [params.id]);
 
-  const handleHoldAndProceed = async () => {
+  const handleHoldSlot = async () => {
     if (!selectedSlot || !provider) return;
+
+    if (!user) {
+      router.push(`/login?redirect=${encodeURIComponent(`/providers/${params.id}`)}`);
+      return;
+    }
+
     setHolding(true);
     setError(null);
 
@@ -65,7 +73,6 @@ export default function ProviderDetailPage({ params }: { params: { id: string } 
     try {
       const response = await apiClient.holdSlot({
         slotId: selectedSlot,
-        patientId: 'demo-patient-sarah-jenkins',
       });
 
       sessionManager.setSelectedSlot(selectedSlot, slotTimeFormatted);
@@ -76,7 +83,9 @@ export default function ProviderDetailPage({ params }: { params: { id: string } 
         router.push('/book');
       }, 600);
     } catch (err: any) {
-      if (err?.status === 409 || err?.message?.includes('already') || err?.message?.includes('held')) {
+      if (err?.status === 401) {
+        router.push(`/login?redirect=${encodeURIComponent(`/providers/${params.id}`)}`);
+      } else if (err?.status === 409 || err?.message?.includes('already') || err?.message?.includes('held')) {
         setError('That appointment slot is no longer available. Please select another time.');
       } else {
         setError(err?.message || 'We couldn\'t hold this slot. Please try again.');
@@ -240,7 +249,7 @@ export default function ProviderDetailPage({ params }: { params: { id: string } 
           </span>
           <button
             disabled={!selectedSlot || holding}
-            onClick={handleHoldAndProceed}
+            onClick={handleHoldSlot}
             className="w-full sm:w-auto px-6 py-3 rounded-xl bg-brand-700 hover:bg-brand-800 disabled:opacity-50 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2"
           >
             {holding ? 'Reserving Temporary Hold...' : 'Hold Slot & Proceed to Booking'}

@@ -1,13 +1,14 @@
 import { Module, Global } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
-import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../common/prisma.service';
 import { RedisService } from '../../common/redis.service';
+
 import {
   NOTIFICATION_QUEUE,
   REMINDER_QUEUE,
   CLEANUP_QUEUE,
 } from './queue.constants';
+
 import { QueueProducerService } from './queue-producer.service';
 import { NotificationProcessor } from './processors/notification.processor';
 import { ReminderProcessor } from './processors/reminder.processor';
@@ -21,21 +22,20 @@ import { getRedisConfig } from '../../common/redis.config';
     BullModule.forRootAsync({
       useFactory: () => {
         const redisOptions = getRedisConfig();
+
         return {
-          connection: {
-            host: redisOptions.host,
-            port: redisOptions.port,
-            ...(redisOptions.password ? { password: redisOptions.password } : {}),
-          },
+          connection: redisOptions,
         };
       },
     }),
+
     BullModule.registerQueue(
       { name: NOTIFICATION_QUEUE },
       { name: REMINDER_QUEUE },
       { name: CLEANUP_QUEUE },
     ),
   ],
+
   providers: [
     PrismaService,
     RedisService,
@@ -44,6 +44,7 @@ import { getRedisConfig } from '../../common/redis.config';
     ReminderProcessor,
     CleanupProcessor,
   ],
+
   exports: [QueueProducerService, BullModule],
 })
-export class QueuesModule {}
+export class QueuesModule { }

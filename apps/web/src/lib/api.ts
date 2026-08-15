@@ -240,7 +240,43 @@ export const apiClient = {
   getCareJourney: async (id: string): Promise<CareJourneyItem> => {
     return fetchJson<CareJourneyItem>(`/care-journeys/${id}`);
   },
+
+  // Notification Endpoints
+  getNotifications: async (page: number = 1, limit: number = 20, unreadOnly: boolean = false): Promise<NotificationResponse> => {
+    return fetchJson<NotificationResponse>(`/notifications?page=${page}&limit=${limit}&unreadOnly=${unreadOnly}`);
+  },
+
+  markNotificationAsRead: async (id: string): Promise<NotificationItem> => {
+    return fetchJson<NotificationItem>(`/notifications/${id}/read`, {
+      method: 'PATCH',
+    });
+  },
+
+  markAllNotificationsAsRead: async (): Promise<{ count: number }> => {
+    return fetchJson<{ count: number }>('/notifications/read-all', {
+      method: 'POST',
+    });
+  },
 };
+
+export interface NotificationItem {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: string;
+  isRead: boolean;
+  dedupeKey?: string | null;
+  createdAt: string;
+}
+
+export interface NotificationResponse {
+  items: NotificationItem[];
+  total: number;
+  unreadCount: number;
+  page: number;
+  limit: number;
+}
 
 export interface CareEventItem {
   id: string;

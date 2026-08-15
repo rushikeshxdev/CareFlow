@@ -30,10 +30,11 @@ export function validateEnvironment(config: Record<string, any>): EnvironmentVar
   }
 
   const aiProvider = config.AI_PROVIDER || 'mock';
-  if (nodeEnv === 'production' || aiProvider === 'gemini') {
-    if (!config.AI_API_KEY) {
-      errors.push(`AI_API_KEY is required when NODE_ENV is production or AI_PROVIDER is 'gemini'.`);
-    }
+
+  if (aiProvider === 'gemini' && !config.AI_API_KEY) {
+    errors.push(
+      `AI_API_KEY is required when AI_PROVIDER is 'gemini'.`,
+    );
   }
 
   if (errors.length > 0) {

@@ -17,11 +17,14 @@ import { QueuesModule } from './infrastructure/queues/queues.module';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 
+import { validateEnvironment } from './common/env.validation';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env.local', '.env'],
+      validate: validateEnvironment,
     }),
     ThrottlerModule.forRoot([
       {

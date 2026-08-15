@@ -11,7 +11,14 @@
     "start:prod": "node dist/main",
     "start:worker": "ts-node src/worker.ts",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
-    "test": "jest"
+    "typecheck": "tsc --noEmit",
+    "test": "ts-node test/unit.spec.ts",
+    "test:unit": "ts-node test/unit.spec.ts",
+    "test:integration": "ts-node test/care-journey.spec.ts",
+    "test:security": "ts-node test/security.spec.ts",
+    "test:concurrency": "ts-node test/care-journey.spec.ts",
+    "test:queues": "ts-node test/async-queues.spec.ts",
+    "test:e2e": "ts-node test/e2e.spec.ts"
   },
   "dependencies": {
     "@careflow/shared": "*",

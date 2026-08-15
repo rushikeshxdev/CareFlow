@@ -19,8 +19,15 @@
     "db:push": "npx prisma db push",
     "db:seed": "npx prisma db seed",
     "db:studio": "npx prisma studio",
+    "test": "npm run test:unit --workspace=backend/api",
+    "test:unit": "npm run test:unit --workspace=backend/api",
+    "test:integration": "npm run test:integration --workspace=backend/api",
+    "test:security": "npm run test:security --workspace=backend/api",
+    "test:concurrency": "npm run test:concurrency --workspace=backend/api",
+    "test:queues": "npm run test:queues --workspace=backend/api",
+    "test:e2e": "npm run test:e2e --workspace=backend/api",
     "lint": "npm run lint --workspaces --if-present",
-    "typecheck": "tsc --noEmit --composite false"
+    "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "devDependencies": {
     "@types/jsonwebtoken": "^9.0.10",

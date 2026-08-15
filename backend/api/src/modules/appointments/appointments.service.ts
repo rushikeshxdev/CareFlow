@@ -2,8 +2,8 @@ import { Injectable, ConflictException, NotFoundException, BadRequestException }
 import { PrismaService } from '../../common/prisma.service';
 import { RedisService } from '../../common/redis.service';
 import { AppointmentStatus, SlotStatus, AppointmentType } from '@prisma/client';
-
 import { CareJourneysService } from '../care-journeys/care-journeys.service';
+import { QueueProducerService } from '../../infrastructure/queues/queue-producer.service';
 
 export interface CreateAppointmentDto {
   patientId: string;
@@ -25,6 +25,7 @@ export class AppointmentsService {
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
     private readonly careJourneysService: CareJourneysService,
+    private readonly queueProducer: QueueProducerService,
   ) {}
 
   /**
@@ -124,7 +125,7 @@ export class AppointmentsService {
     const patientId = await this.resolvePatientId(rawPatientId);
     const serviceId = await this.resolveServiceId(rawServiceId);
 
-    return await this.prisma.$transaction(async (tx) => {
+    const appointment = await this.prisma.$transaction(async (tx) => {
       // Fetch slot with pessimistic check
       const slot = await tx.availabilitySlot.findUnique({
         where: { id: slotId },
@@ -193,6 +194,31 @@ export class AppointmentsService {
 
       return appointment;
     });
+
+    // Enqueue background notification and reminder jobs AFTER transaction COMMIT (Async, non-blocking)
+    try {
+      if (appointment && appointment.patient?.userId) {
+        await this.queueProducer.enqueueNotification({
+          type: 'APPOINTMENT_CONFIRMED',
+          appointmentId: appointment.id,
+          userId: appointment.patient.userId,
+          patientId: appointment.patientId,
+        });
+
+        if (appointment.slot?.startTime) {
+          await this.queueProducer.scheduleReminders(
+            appointment.id,
+            appointment.patient.userId,
+            appointment.patientId,
+            new Date(appointment.slot.startTime),
+          );
+        }
+      }
+    } catch (enqueueErr: any) {
+      console.error(`ENQUEUE_FAILED: Failed to enqueue post-commit background jobs for appointment ${appointment?.id}:`, enqueueErr?.message);
+    }
+
+    return appointment;
   }
 
   async findAllForPatient(patientId: string) {

@@ -19,6 +19,8 @@ export function validateEnvironment(config: Record<string, any>): EnvironmentVar
 
   if (!config.DATABASE_URL) {
     errors.push('DATABASE_URL is missing.');
+  } else if (!config.DATABASE_URL.startsWith('postgresql://') && !config.DATABASE_URL.startsWith('postgres://')) {
+    errors.push('DATABASE_URL must start with postgresql:// or postgres://');
   }
 
   if (!config.JWT_SECRET) {

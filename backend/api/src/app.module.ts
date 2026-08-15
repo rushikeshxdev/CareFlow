@@ -12,6 +12,7 @@ import { AppointmentsModule } from './modules/appointments/appointments.module';
 import { CareJourneysModule } from './modules/care-journeys/care-journeys.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AiOrchestrationModule } from './modules/ai-orchestration/ai-orchestration.module';
+import { QueuesModule } from './infrastructure/queues/queues.module';
 
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
@@ -40,6 +41,7 @@ import { APP_GUARD } from '@nestjs/core';
     CareJourneysModule,
     NotificationsModule,
     AiOrchestrationModule,
+    QueuesModule,
   ],
   providers: [
     {

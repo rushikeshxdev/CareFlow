@@ -1,5 +1,6 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import Redis from 'ioredis';
+import { getRedisConfig } from './redis.config';
 
 @Injectable()
 export class RedisService implements OnModuleInit, OnModuleDestroy {
@@ -7,17 +8,15 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   private client: Redis;
 
   onModuleInit() {
-    const host = process.env.REDIS_HOST || 'localhost';
-    const port = parseInt(process.env.REDIS_PORT || '6379', 10);
+    const config = getRedisConfig();
     this.client = new Redis({
-      host,
-      port,
+      ...config,
       retryStrategy: (times) => Math.min(times * 100, 3000),
       lazyConnect: true,
     });
 
     this.client.connect().then(() => {
-      this.logger.log(`Connected to Redis server at ${host}:${port}`);
+      this.logger.log(`Connected to Redis server at ${config.host}:${config.port}`);
     }).catch((err) => {
       this.logger.warn(`Redis connection warning: ${err.message}. Operating in fallback mode if needed.`);
     });

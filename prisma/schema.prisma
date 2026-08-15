@@ -292,10 +292,12 @@ model Notification {
   message   String
   type      String   @default("INFO")
   isRead    Boolean  @default(false)
+  dedupeKey String?  @unique
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, isRead])
   @@map("notifications")
 }
 

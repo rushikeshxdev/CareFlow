@@ -1,0 +1,125 @@
+name: CareFlow CI Pipeline
+
+on:
+  push:
+    branches: [main, master, dev]
+  pull_request:
+    branches: [main, master, dev]
+
+jobs:
+  validate-and-test:
+    name: Build, Audit & Test Monorepo
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: careflow_user
+          POSTGRES_PASSWORD: careflow_password
+          POSTGRES_DB: careflow_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://careflow_user:careflow_password@localhost:5432/careflow_db?schema=public
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: ci_test_jwt_secret_key_12345
+      JWT_REFRESH_SECRET: ci_test_jwt_refresh_secret_key_67890
+      AI_SERVICE_URL: http://localhost:8000
+      AI_PROVIDER: mock
+      PORT: 3001
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Workspace Node Dependencies
+        run: npm ci
+
+      - name: Dependency Security Audit
+        run: npm audit --audit-level=critical || true
+
+      - name: Secret Scan Audit
+        run: |
+          echo "Scanning codebase for unexpected plain secrets..."
+          ! grep -r "AIzaSy" --exclude-dir=node_modules --exclude-dir=.git .
+          ! grep -r "eyJhbGciOi" --exclude-dir=node_modules --exclude-dir=.git .
+
+      - name: Prisma Client Generation & Database Sync
+        run: |
+          npx prisma generate
+          npx prisma db push --accept-data-loss
+          npx prisma db seed
+
+      - name: FastAPI AI Service Smoke Test
+        run: |
+          cd services/ai
+          pip install -r requirements.txt
+          uvicorn main:app --port 8000 &
+          sleep 3
+          curl -f http://localhost:8000/health
+          curl -X POST http://localhost:8000/ai/analyze-intent \
+            -H "Content-Type: application/json" \
+            -d '{"concern": "Chest pain and shortness of breath"}'
+
+      - name: Start NestJS Backend API in Background
+        run: |
+          npm run dev:backend &
+          sleep 5
+          curl -f http://localhost:3001/api/v1/health
+
+      - name: BullMQ Worker Process Startup Smoke Test
+        run: |
+          echo "Smoke testing BullMQ worker process initialization..."
+          timeout 5s npm run start:worker || [ $? -eq 124 ]
+
+      - name: Run Unit Tests
+        run: npm test
+
+      - name: Run Security & Ownership Tests
+        run: npm run test:security
+
+      - name: Run Concurrency & Care Journey Tests
+        run: npm run test:integration
+
+      - name: Run BullMQ Worker & Async Queue Tests
+        run: npm run test:queues
+
+      - name: Run End-to-End User Journey Tests
+        run: npm run test:e2e
+
+      - name: Build All Workspaces
+        run: |
+          npm run build:shared
+          npm run build:backend
+          npm run build:web

@@ -4,7 +4,10 @@ import { AppointmentsService } from './appointments.service';
 import { PrismaService } from '../../common/prisma.service';
 import { RedisService } from '../../common/redis.service';
 
+import { CareJourneysModule } from '../care-journeys/care-journeys.module';
+
 @Module({
+  imports: [CareJourneysModule],
   controllers: [AppointmentsController],
   providers: [AppointmentsService, PrismaService, RedisService],
   exports: [AppointmentsService],

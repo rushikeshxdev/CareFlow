@@ -55,10 +55,11 @@ enum AppointmentType {
 enum CareJourneyStatus {
   ACTIVE
   COMPLETED
-  PAUSED
+  CANCELLED
 }
 
 enum CareEventType {
+  AI_ASSESSMENT
   CONSULTATION
   DIAGNOSTIC_TEST
   PRESCRIPTION
@@ -216,9 +217,10 @@ model Appointment {
   createdAt  DateTime          @default(now())
   updatedAt  DateTime          @updatedAt
 
-  patient  Patient          @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  provider Provider         @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  slot     AvailabilitySlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  patient    Patient          @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  provider   Provider         @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  slot       AvailabilitySlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  careEvents CareEvent[]
 
   @@index([patientId])
   @@index([providerId])
@@ -243,14 +245,16 @@ model CareJourney {
 model CareEvent {
   id            String        @id @default(uuid())
   careJourneyId String
+  appointmentId String?       @unique
   eventType     CareEventType
   title         String
   description   String?
   eventDate     DateTime      @default(now())
-  status        String        @default("COMPLETED")
+  status        String        @default("CONFIRMED")
   createdAt     DateTime      @default(now())
 
-  careJourney CareJourney @relation(fields: [careJourneyId], references: [id], onDelete: Cascade)
+  careJourney CareJourney  @relation(fields: [careJourneyId], references: [id], onDelete: Cascade)
+  appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
 
   @@map("care_events")
 }

@@ -3,6 +3,8 @@ import { PrismaService } from '../../common/prisma.service';
 import { RedisService } from '../../common/redis.service';
 import { AppointmentStatus, SlotStatus, AppointmentType } from '@prisma/client';
 
+import { CareJourneysService } from '../care-journeys/care-journeys.service';
+
 export interface CreateAppointmentDto {
   patientId: string;
   providerId: string;
@@ -22,6 +24,7 @@ export class AppointmentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    private readonly careJourneysService: CareJourneysService,
   ) {}
 
   /**
@@ -171,6 +174,9 @@ export class AppointmentsService {
         },
       });
 
+      // Automatically create or find CareJourney and create CareEvent inside the SAME transaction (tx)
+      await this.careJourneysService.ensureJourneyAndEventForAppointment(tx, appointment);
+
       // Release Redis temporary lock
       await this.redis.releaseSlotHold(slotId);
 
@@ -236,6 +242,9 @@ export class AppointmentsService {
         where: { id },
         data: { status: AppointmentStatus.CANCELLED },
       });
+
+      // Update corresponding CareEvent status inside the transaction
+      await this.careJourneysService.updateEventStatusForAppointment(tx, id, 'CANCELLED');
 
       // Make slot AVAILABLE again
       await tx.availabilitySlot.update({

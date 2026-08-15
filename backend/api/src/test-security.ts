@@ -141,7 +141,7 @@ async function runSecurityTestSuite() {
     const patientBId = regB.body.user.patientId;
 
     // Find available slot
-    const slot = await prisma.availabilitySlot.findFirst({ where: { status: 'AVAILABLE' } });
+    const slot = await prisma.availabilitySlot.findFirst({ where: { status: 'AVAILABLE', appointment: null } });
     if (!slot) throw new Error('No available slot found for testing');
 
     // Patient A holds slot but attempts to send Patient B's ID in body

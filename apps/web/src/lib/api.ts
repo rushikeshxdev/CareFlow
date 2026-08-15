@@ -231,4 +231,37 @@ export const apiClient = {
   getAppointment: async (id: string): Promise<AppointmentRecord> => {
     return fetchJson<AppointmentRecord>(`/appointments/${id}`);
   },
+
+  // Care Journey Endpoints
+  getCareJourneys: async (): Promise<CareJourneyItem[]> => {
+    return fetchJson<CareJourneyItem[]>('/care-journeys');
+  },
+
+  getCareJourney: async (id: string): Promise<CareJourneyItem> => {
+    return fetchJson<CareJourneyItem>(`/care-journeys/${id}`);
+  },
 };
+
+export interface CareEventItem {
+  id: string;
+  careJourneyId: string;
+  appointmentId?: string | null;
+  eventType: 'AI_ASSESSMENT' | 'CONSULTATION' | 'DIAGNOSTIC_TEST' | 'PRESCRIPTION' | 'FOLLOW_UP';
+  title: string;
+  description?: string | null;
+  eventDate: string;
+  status: string;
+  createdAt: string;
+  appointment?: AppointmentRecord | null;
+}
+
+export interface CareJourneyItem {
+  id: string;
+  patientId: string;
+  title: string;
+  description?: string | null;
+  status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+  createdAt: string;
+  updatedAt: string;
+  events: CareEventItem[];
+}

@@ -118,6 +118,16 @@ function ConfirmationContent() {
           </div>
         </div>
 
+        <div className="p-4 rounded-xl bg-teal-50 border border-teal-200 text-xs text-teal-900 flex items-center justify-between">
+          <div>
+            <span className="font-bold block">Care Journey Initiated</span>
+            <span className="text-[11px] text-teal-700">A new longitudinal care journey was created in your patient portal.</span>
+          </div>
+          <Link href="/my-care" className="px-3 py-1.5 rounded-lg bg-teal-700 text-white font-bold text-xs shrink-0">
+            Track Journey
+          </Link>
+        </div>
+
         <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 text-xs text-slate-600 flex items-center justify-between">
           <span>Consultation Fee:</span>
           <span className="font-bold text-slate-900 text-sm">{fee}</span>
@@ -127,8 +137,8 @@ function ConfirmationContent() {
       {/* Navigation Options */}
       <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
         <Link
-          href="/care"
-          className="w-full sm:w-auto px-6 py-3 rounded-xl bg-brand-700 hover:bg-brand-800 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2"
+          href="/my-care"
+          className="w-full sm:w-auto px-6 py-3 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2"
         >
           View Care Journey <ArrowRight className="w-4 h-4" />
         </Link>

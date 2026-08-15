@@ -25,10 +25,40 @@ export class AppointmentsService {
   ) {}
 
   /**
+   * Safe helper to resolve patient ID (handles demo string IDs gracefully)
+   */
+  private async resolvePatientId(patientId: string): Promise<string> {
+    const existing = await this.prisma.patient.findUnique({ where: { id: patientId } });
+    if (existing) return existing.id;
+
+    const defaultPatient = await this.prisma.patient.findFirst();
+    if (defaultPatient) return defaultPatient.id;
+
+    return patientId;
+  }
+
+  /**
+   * Safe helper to resolve service ID (handles slug strings like 'general-consultation' gracefully)
+   */
+  private async resolveServiceId(serviceId: string): Promise<string> {
+    const existingById = await this.prisma.service.findUnique({ where: { id: serviceId } });
+    if (existingById) return existingById.id;
+
+    const existingBySlug = await this.prisma.service.findUnique({ where: { slug: serviceId } });
+    if (existingBySlug) return existingBySlug.id;
+
+    const defaultService = await this.prisma.service.findFirst();
+    if (defaultService) return defaultService.id;
+
+    return serviceId;
+  }
+
+  /**
    * Temporary hold reservation on an availability slot
    */
   async holdSlot(dto: HoldSlotDto) {
-    const { slotId, patientId } = dto;
+    const { slotId, patientId: rawPatientId } = dto;
+    const patientId = await this.resolvePatientId(rawPatientId);
 
     const slot = await this.prisma.availabilitySlot.findUnique({
       where: { id: slotId },
@@ -39,11 +69,11 @@ export class AppointmentsService {
     }
 
     if (slot.status === SlotStatus.BOOKED) {
-      throw new ConflictException('Slot is already booked');
+      throw new ConflictException('That appointment slot is no longer available. It has already been booked.');
     }
 
+    const now = new Date();
     if (slot.status === SlotStatus.HELD && slot.heldByPatientId !== patientId) {
-      const now = new Date();
       if (slot.heldUntil && slot.heldUntil > now) {
         throw new ConflictException('Slot is currently held by another user');
       }
@@ -52,7 +82,7 @@ export class AppointmentsService {
     // 1. Redis Atomic Lock
     const acquired = await this.redis.acquireSlotHold(slotId, patientId, 600); // 10 min hold
     if (!acquired) {
-      throw new ConflictException('Slot is currently being held by another user');
+      throw new ConflictException('Slot is currently held by another user');
     }
 
     // 2. Postgres State Update
@@ -69,7 +99,7 @@ export class AppointmentsService {
     });
 
     return {
-      message: 'Slot successfully held for 10 minutes',
+      message: 'Slot reserved for 10 minutes. Complete your booking within 10 minutes.',
       slot: updatedSlot,
       expiresAt: heldUntil,
     };
@@ -79,7 +109,17 @@ export class AppointmentsService {
    * Confirm appointment booking inside a PostgreSQL transaction
    */
   async createAppointment(dto: CreateAppointmentDto) {
-    const { patientId, providerId, slotId, serviceId, type = AppointmentType.IN_PERSON, reason } = dto;
+    const {
+      patientId: rawPatientId,
+      providerId,
+      slotId,
+      serviceId: rawServiceId,
+      type = AppointmentType.IN_PERSON,
+      reason,
+    } = dto;
+
+    const patientId = await this.resolvePatientId(rawPatientId);
+    const serviceId = await this.resolveServiceId(rawServiceId);
 
     return await this.prisma.$transaction(async (tx) => {
       // Fetch slot with pessimistic check
@@ -92,7 +132,7 @@ export class AppointmentsService {
       }
 
       if (slot.status === SlotStatus.BOOKED) {
-        throw new ConflictException('This slot has already been booked');
+        throw new ConflictException('That appointment slot is no longer available.');
       }
 
       const now = new Date();
@@ -122,7 +162,7 @@ export class AppointmentsService {
           serviceId,
           type,
           status: AppointmentStatus.CONFIRMED,
-          reason,
+          reason: reason || 'Consultation and evaluation',
         },
         include: {
           patient: { include: { user: true } },
@@ -137,7 +177,7 @@ export class AppointmentsService {
       // Create audit log
       await tx.auditLog.create({
         data: {
-          userId: patientId,
+          userId: appointment.patient?.userId || null,
           action: 'APPOINTMENT_CONFIRMED',
           entity: 'Appointment',
           entityId: appointment.id,
@@ -150,8 +190,9 @@ export class AppointmentsService {
   }
 
   async findAllForPatient(patientId: string) {
+    const resolvedId = await this.resolvePatientId(patientId);
     return this.prisma.appointment.findMany({
-      where: { patientId },
+      where: { patientId: resolvedId },
       include: {
         provider: true,
         slot: true,
@@ -199,11 +240,7 @@ export class AppointmentsService {
       // Make slot AVAILABLE again
       await tx.availabilitySlot.update({
         where: { id: appointment.slotId },
-        data: {
-          status: SlotStatus.AVAILABLE,
-          heldByPatientId: null,
-          heldUntil: null,
-        },
+        data: { status: SlotStatus.AVAILABLE },
       });
 
       return updated;

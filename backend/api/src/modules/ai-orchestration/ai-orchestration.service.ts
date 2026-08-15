@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadGatewayException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ProvidersService } from '../providers/providers.service';
 
 export interface AnalyzeConcernDto {
@@ -7,6 +7,20 @@ export interface AnalyzeConcernDto {
   userAge?: number;
   gender?: string;
 }
+
+const SUPPORTED_SPECIALTIES = [
+  'Cardiology',
+  'General Medicine',
+  'Orthopedics',
+  'Neurology',
+  'Pulmonology',
+  'Gynecology',
+  'Pediatrics',
+  'Dermatology',
+];
+
+const SUPPORTED_INTENTS = ['find_doctor', 'find_hospital', 'diagnostic_test', 'home_care', 'general_query'];
+const SUPPORTED_URGENCIES = ['routine', 'urgent', 'emergency'];
 
 @Injectable()
 export class AiOrchestrationService {
@@ -24,18 +38,53 @@ export class AiOrchestrationService {
       });
 
       if (!response.ok) {
-        throw new Error(`AI service returned status ${response.status}`);
+        throw new Error(`AI service returned HTTP ${response.status}`);
       }
 
-      const aiData = await response.json();
+      const rawAiData = await response.json();
 
-      // NestJS validates & orchestrates provider recommendations based on structured AI output
+      // Task 5: Business Authority Validation & Normalization
+      const validatedIntent = SUPPORTED_INTENTS.includes(rawAiData.intent) ? rawAiData.intent : 'find_doctor';
+      const validatedUrgency = SUPPORTED_URGENCIES.includes(rawAiData.urgency) ? rawAiData.urgency : 'routine';
+      
+      let validatedSpecialty = rawAiData.recommendedSpecialty;
+      if (!validatedSpecialty || !SUPPORTED_SPECIALTIES.some((s) => s.toLowerCase() === validatedSpecialty.toLowerCase())) {
+        this.logger.warn(`AI returned unmapped specialty "${rawAiData.recommendedSpecialty}". Falling back to General Medicine.`);
+        validatedSpecialty = 'General Medicine';
+      } else {
+        const matched = SUPPORTED_SPECIALTIES.find((s) => s.toLowerCase() === validatedSpecialty.toLowerCase());
+        if (matched) validatedSpecialty = matched;
+      }
+
+      const aiData = {
+        ...rawAiData,
+        intent: validatedIntent,
+        urgency: validatedUrgency,
+        recommendedSpecialty: validatedSpecialty,
+        disclaimer:
+          rawAiData.disclaimer ||
+          'Informational guidance only. CareFlow AI does not diagnose conditions. Consult a licensed healthcare provider for medical advice.',
+      };
+
+      // Query & rank matching providers based on validated AI specialty intent
       let matchedProviders = [];
-      if (aiData.recommendedSpecialty) {
+      if (dto.location) {
         matchedProviders = await this.providersService.findAll({
-          search: aiData.recommendedSpecialty,
+          search: validatedSpecialty,
           city: dto.location,
         });
+      }
+
+      // If location filter returns 0 providers, query nationwide matching providers
+      if (matchedProviders.length === 0) {
+        matchedProviders = await this.providersService.findAll({
+          search: validatedSpecialty,
+        });
+      }
+
+      // If still no providers found, fallback to top available providers overall
+      if (matchedProviders.length === 0) {
+        matchedProviders = await this.providersService.findAll({});
       }
 
       return {
@@ -48,22 +97,28 @@ export class AiOrchestrationService {
       };
     } catch (error) {
       this.logger.error(`AI Orchestration Error: ${error.message}`);
-      // Fallback response if AI microservice is offline or degraded
+
+      // Graceful fallback mode if FastAPI is offline
+      const fallbackSpecialty = 'Cardiology';
+      const fallbackProviders = await this.providersService.findAll({ search: fallbackSpecialty });
+
       return {
         aiAnalysis: {
           intent: 'find_doctor',
-          recommendedSpecialty: 'General Medicine',
+          recommendedSpecialty: fallbackSpecialty,
           recommendedServiceType: 'CONSULTATION',
-          suggestedAction: 'Consult a primary care physician for symptom evaluation.',
+          suggestedAction: 'Schedule a consultation for comprehensive evaluation.',
           urgency: 'routine',
           summary: dto.concern,
-          keySymptoms: ['Reported health concern'],
-          disclaimer: 'Informational only. Please consult a qualified healthcare professional.',
+          keySymptoms: ['Reported symptoms'],
+          disclaimer:
+            'Informational guidance only. CareFlow AI does not diagnose conditions. Consult a licensed healthcare provider for medical advice.',
         },
-        recommendedProviders: await this.providersService.findAll({ search: 'General Medicine' }),
+        recommendedProviders: fallbackProviders.slice(0, 5),
         meta: {
           fallback: true,
-          reason: 'AI service currently operating in fallback mode',
+          reason: 'AI microservice offline. Operating in local fallback mode.',
+          processedAt: new Date().toISOString(),
         },
       };
     }

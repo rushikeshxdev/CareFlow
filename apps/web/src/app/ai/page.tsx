@@ -2,49 +2,30 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sparkles, Send, ShieldAlert, ArrowRight, Activity, Stethoscope } from 'lucide-react';
+import { Sparkles, ShieldAlert, ArrowRight, Activity } from 'lucide-react';
+import { apiClient } from '@/lib/api';
+import { sessionManager } from '@/lib/session';
 
 export default function AiAssistantPage() {
   const router = useRouter();
   const [concern, setConcern] = useState('');
   const [location, setLocation] = useState('New York');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!concern.trim()) return;
 
     setLoading(true);
-    try {
-      const res = await fetch('http://localhost:3001/ai/analyze-intent', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ concern, location }),
-      });
+    setError(null);
 
-      const data = await res.json();
-      // Store in session storage for AI Summary & Recommendation pages
-      sessionStorage.setItem('careflow_ai_result', JSON.stringify(data));
+    try {
+      const data = await apiClient.analyzeConcern({ concern, location });
+      sessionManager.setAiResult(data);
       router.push('/ai/summary');
-    } catch {
-      // Fallback redirect if backend is starting
-      sessionStorage.setItem(
-        'careflow_ai_result',
-        JSON.stringify({
-          aiAnalysis: {
-            intent: 'find_doctor',
-            recommendedSpecialty: 'Cardiology',
-            recommendedServiceType: 'CONSULTATION',
-            suggestedAction: 'Schedule an urgent cardiology consultation and ECG cardiac screening.',
-            urgency: 'urgent',
-            summary: concern,
-            keySymptoms: ['Chest discomfort', 'Shortness of breath'],
-            disclaimer: 'Informational guidance only. CareFlow AI does not diagnose conditions.',
-          },
-          recommendedProviders: [],
-        })
-      );
-      router.push('/ai/summary');
+    } catch (err: any) {
+      setError(err?.message || 'Unable to reach CareFlow AI service. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -55,12 +36,12 @@ export default function AiAssistantPage() {
       {/* Header */}
       <div className="text-center space-y-3">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-50 text-brand-700 font-semibold text-xs border border-brand-200">
-          <Sparkles className="w-4 h-4" />
+          <Sparkles className="w-4 h-4 text-brand-600" />
           CareFlow AI Assistant
         </div>
         <h1 className="text-3xl font-extrabold text-slate-900">Describe Your Health Concern</h1>
         <p className="text-slate-500 text-sm max-w-xl mx-auto">
-          Describe what you are experiencing in plain text. CareFlow AI will analyze your intent, extract key symptoms, and recommend the appropriate specialty.
+          Describe what you are experiencing in plain text. CareFlow AI will extract intent, identify symptoms, and match you with top-ranked providers.
         </p>
       </div>
 
@@ -73,6 +54,12 @@ export default function AiAssistantPage() {
         </div>
       </div>
 
+      {error && (
+        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 font-semibold">
+          {error}
+        </div>
+      )}
+
       {/* Concern Form */}
       <form onSubmit={handleSubmit} className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-6">
         <div>
@@ -83,7 +70,7 @@ export default function AiAssistantPage() {
             rows={5}
             value={concern}
             onChange={(e) => setConcern(e.target.value)}
-            placeholder="Example: I've had a persistent dull headache behind my eyes for 2 days, accompanied by mild dizziness when standing up..."
+            placeholder="Example: I need a cardiologist tomorrow for chest tightness and racing heart..."
             className="w-full p-4 rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 text-sm text-slate-900 placeholder:text-slate-400 transition-all outline-none resize-none"
             required
           />
@@ -115,10 +102,10 @@ export default function AiAssistantPage() {
           <span className="text-xs font-semibold text-slate-500 block mb-2">Sample Concerns:</span>
           <div className="flex flex-wrap gap-2">
             {[
-              'Chest tightness and racing heartbeat for past hour',
-              'Severe lower back pain after lifting heavy box',
-              'Persistent dry cough and tightness in chest',
-              'Need full executive blood panel checkup',
+              'I need a cardiologist tomorrow.',
+              'Severe headache behind eyes with dizziness for 2 days.',
+              'Persistent dry cough and tightness in chest.',
+              'Need full executive blood panel checkup.',
             ].map((sample, idx) => (
               <button
                 key={idx}
@@ -139,7 +126,7 @@ export default function AiAssistantPage() {
         >
           {loading ? (
             <div className="flex items-center gap-2">
-              <Activity className="w-4 h-4 animate-spin" /> Analyzing Symptoms...
+              <Activity className="w-4 h-4 animate-spin" /> Analyzing Intent with AI...
             </div>
           ) : (
             <>

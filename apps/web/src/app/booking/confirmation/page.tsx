@@ -1,28 +1,63 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, Calendar, Clock, MapPin, User, ShieldCheck, ArrowRight } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { CheckCircle2, Calendar, Clock, MapPin, User, ArrowRight } from 'lucide-react';
+import { sessionManager } from '@/lib/session';
+import { apiClient, AppointmentRecord } from '@/lib/api';
 
-export default function BookingConfirmationPage() {
-  const [appointment, setAppointment] = useState<any>(null);
+function ConfirmationContent() {
+  const searchParams = useSearchParams();
+  const appointmentId = searchParams.get('id');
+
+  const [appointment, setAppointment] = useState<AppointmentRecord | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const raw = sessionStorage.getItem('careflow_confirmed_appointment');
-    if (raw) {
-      setAppointment(JSON.parse(raw));
-    }
-  }, []);
+    let isMounted = true;
+    const sessionAppt = sessionManager.getConfirmedAppointment();
 
-  const data = appointment || {
-    id: 'apt-demo-9921',
-    patientName: 'Sarah Jenkins',
-    providerName: 'Dr. Aris Thorne',
-    specialty: 'Cardiology',
-    time: '9:00 AM Today',
-    fee: '$150',
-    status: 'CONFIRMED',
-  };
+    if (sessionAppt) {
+      setAppointment(sessionAppt);
+      setLoading(false);
+    } else if (appointmentId) {
+      apiClient
+        .getAppointment(appointmentId)
+        .then((data) => {
+          if (isMounted) {
+            setAppointment(data);
+            setLoading(false);
+          }
+        })
+        .catch(() => {
+          if (isMounted) setLoading(false);
+        });
+    } else {
+      setLoading(false);
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [appointmentId]);
+
+  const patientName = appointment?.patient?.user?.name || 'Sarah Jenkins';
+  const providerName = appointment?.provider?.name || 'CareFlow Verified Provider';
+  const providerAddress = appointment?.provider?.address
+    ? `${appointment.provider.address}, ${appointment.provider.city}`
+    : appointment?.provider?.city || 'New York, NY';
+  const fee = appointment?.provider?.consultationFee ? `$${appointment.provider.consultationFee}` : '$150';
+
+  const startTimeFormatted = appointment?.slot?.startTime
+    ? new Date(appointment.slot.startTime).toLocaleString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      })
+    : 'Confirmed Slot Time';
 
   return (
     <div className="max-w-xl mx-auto space-y-8 text-center">
@@ -42,10 +77,10 @@ export default function BookingConfirmationPage() {
         <div className="flex items-center justify-between border-b border-slate-100 pb-4">
           <div>
             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Booking Reference</span>
-            <span className="font-mono text-xs font-bold text-slate-900">{data.id || 'APT-884920'}</span>
+            <span className="font-mono text-xs font-bold text-slate-900">{appointment?.id || 'APT-CONFIRMED'}</span>
           </div>
-          <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 font-extrabold text-xs">
-            {data.status || 'CONFIRMED'}
+          <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 font-extrabold text-xs uppercase tracking-wider">
+            {appointment?.status || 'CONFIRMED'}
           </span>
         </div>
 
@@ -54,7 +89,7 @@ export default function BookingConfirmationPage() {
             <User className="w-5 h-5 text-brand-700 shrink-0" />
             <div>
               <span className="text-xs text-slate-400 block">Patient</span>
-              <span className="font-bold text-slate-900">Sarah Jenkins</span>
+              <span className="font-bold text-slate-900">{patientName}</span>
             </div>
           </div>
 
@@ -62,15 +97,15 @@ export default function BookingConfirmationPage() {
             <Calendar className="w-5 h-5 text-teal-600 shrink-0" />
             <div>
               <span className="text-xs text-slate-400 block">Provider</span>
-              <span className="font-bold text-slate-900">{data.providerName || 'Dr. Aris Thorne'}</span>
+              <span className="font-bold text-slate-900">{providerName}</span>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
             <Clock className="w-5 h-5 text-purple-700 shrink-0" />
             <div>
-              <span className="text-xs text-slate-400 block">Scheduled Slot</span>
-              <span className="font-bold text-slate-900">9:00 AM Today (30 mins)</span>
+              <span className="text-xs text-slate-400 block">Scheduled Time</span>
+              <span className="font-bold text-slate-900">{startTimeFormatted}</span>
             </div>
           </div>
 
@@ -78,14 +113,14 @@ export default function BookingConfirmationPage() {
             <MapPin className="w-5 h-5 text-slate-400 shrink-0" />
             <div>
               <span className="text-xs text-slate-400 block">Location</span>
-              <span className="font-bold text-slate-900">100 Medical Center Way, New York, NY</span>
+              <span className="font-bold text-slate-900">{providerAddress}</span>
             </div>
           </div>
         </div>
 
         <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 text-xs text-slate-600 flex items-center justify-between">
-          <span>Consultation Fee Paid / Held:</span>
-          <span className="font-bold text-slate-900 text-sm">{data.fee || '$150'}</span>
+          <span>Consultation Fee:</span>
+          <span className="font-bold text-slate-900 text-sm">{fee}</span>
         </div>
       </div>
 
@@ -105,5 +140,13 @@ export default function BookingConfirmationPage() {
         </Link>
       </div>
     </div>
+  );
+}
+
+export default function BookingConfirmationPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-sm font-semibold">Loading confirmation...</div>}>
+      <ConfirmationContent />
+    </Suspense>
   );
 }

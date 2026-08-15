@@ -2,15 +2,17 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Sparkles, Stethoscope, AlertTriangle, ArrowRight, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { Sparkles, Stethoscope, ArrowRight, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { sessionManager } from '@/lib/session';
+import { AIAnalysisResult } from '@/lib/api';
 
 export default function AiSummaryPage() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<AIAnalysisResult | null>(null);
 
   useEffect(() => {
-    const raw = sessionStorage.getItem('careflow_ai_result');
-    if (raw) {
-      setData(JSON.parse(raw));
+    const result = sessionManager.getAiResult();
+    if (result) {
+      setData(result);
     }
   }, []);
 
@@ -76,16 +78,18 @@ export default function AiSummaryPage() {
         </div>
 
         {/* Extracted Key Symptoms */}
-        <div>
-          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Extracted Key Symptoms</h4>
-          <div className="flex flex-wrap gap-2">
-            {ai.keySymptoms?.map((sym: string, i: number) => (
-              <span key={i} className="px-3 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-medium">
-                {sym}
-              </span>
-            ))}
+        {ai.keySymptoms && ai.keySymptoms.length > 0 && (
+          <div>
+            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Extracted Key Symptoms</h4>
+            <div className="flex flex-wrap gap-2">
+              {ai.keySymptoms.map((sym: string, i: number) => (
+                <span key={i} className="px-3 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-medium">
+                  {sym}
+                </span>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Safety Disclaimer */}
         <div className="p-4 rounded-xl bg-slate-100 border border-slate-200 text-xs text-slate-600 flex items-start gap-2.5">
@@ -103,7 +107,7 @@ export default function AiSummaryPage() {
           </p>
         </div>
         <Link
-          href="/recommendations"
+          href={`/recommendations?specialty=${encodeURIComponent(ai.recommendedSpecialty)}`}
           className="px-5 py-2.5 rounded-xl bg-teal-400 hover:bg-teal-300 text-slate-950 font-bold text-sm flex items-center gap-2 shadow-md transition-all shrink-0"
         >
           View Recommendations <ArrowRight className="w-4 h-4" />

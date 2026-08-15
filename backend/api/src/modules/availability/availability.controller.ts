@@ -9,7 +9,13 @@ export class AvailabilityController {
 
   @Get('providers/:id/availability')
   @ApiOperation({ summary: 'Get availability slots for a specific provider' })
-  async getAvailability(@Param('id') providerId: string) {
+  async getAvailabilityByProviderId(@Param('id') providerId: string) {
+    return this.availabilityService.getProviderAvailability(providerId);
+  }
+
+  @Get('availability/provider/:providerId')
+  @ApiOperation({ summary: 'Get availability slots for a specific provider (alias)' })
+  async getAvailabilityByProviderAlias(@Param('providerId') providerId: string) {
     return this.availabilityService.getProviderAvailability(providerId);
   }
 }

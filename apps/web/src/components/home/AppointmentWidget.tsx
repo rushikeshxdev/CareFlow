@@ -24,9 +24,13 @@ export function AppointmentWidget() {
         <div className="lg:col-span-5 relative bg-gradient-to-br from-purple-900 via-indigo-900 to-purple-950 p-8 flex items-center justify-center min-h-[300px]">
           <div className="w-full max-w-xs aspect-[3/4] rounded-[40px] rounded-tl-[100px] overflow-hidden shadow-2xl border-2 border-white/20">
             <img
-              src="https://images.unsplash.com/photo-1594824813571-2b533411efa0?auto=format&fit=crop&w=800&q=80"
+              src="/images/appointment-doctor.png"
               alt="Schedule appointment doctor visual"
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover object-top"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src =
+                  'https://images.unsplash.com/photo-1594824813571-2b533411efa0?auto=format&fit=crop&w=800&q=80';
+              }}
             />
           </div>
         </div>

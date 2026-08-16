@@ -38,4 +38,6 @@ RUN npx prisma generate
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 COPY --from=builder /app/backend/api/dist ./backend/api/dist
 
+EXPOSE 10001
+
 CMD ["node", "backend/api/dist/src/worker.js"]

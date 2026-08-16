@@ -5,11 +5,9 @@ import { PrismaClient } from '@prisma/client';
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   constructor() {
     let dbUrl = process.env.DATABASE_URL;
-    if (dbUrl && dbUrl.includes('pooler.supabase.com')) {
-      if (!dbUrl.includes('connection_limit')) {
-        const separator = dbUrl.includes('?') ? '&' : '?';
-        dbUrl = `${dbUrl}${separator}connection_limit=3&pgbouncer=true`;
-      }
+    if (dbUrl && !dbUrl.includes('connection_limit')) {
+      const separator = dbUrl.includes('?') ? '&' : '?';
+      dbUrl = `${dbUrl}${separator}connection_limit=3&pgbouncer=true`;
     }
     super({
       datasources: dbUrl ? { db: { url: dbUrl } } : undefined,

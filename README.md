@@ -106,19 +106,6 @@ The platform is fully deployed and operational across production cloud infrastru
                 └─────────────────────────┘
 ```
 
----
-
-## 💼 Recruiter & Technical Interview Assets
-
-Designed specifically for technical evaluation and code walkthroughs:
-
-* 📄 **[Job Description Technical Mapping](docs/jd-mapping.md)**: Line-by-line mapping of CareFlow technical implementations against Software Developer Intern / SDE-1 requirements.
-* 🧠 **[SDE Technical Interview Rationale](docs/interview-notes.md)**: In-depth technical explanations covering concurrency locking, ACID transactions, JWT security, and background worker resilience.
-* 🎬 **[Live Demo Script](docs/demo-script.md)**: Concise browser walkthrough script covering AI symptom analysis, provider search, hold-slot reservation, and care timeline creation.
-* 🏛️ **[Architectural Decision Records (ADRs)](docs/decisions.md)**: Detailed ADRs (1 through 10) explaining key engineering trade-offs.
-
----
-
 ## 🧪 Testing & Verification Suite
 
 CareFlow maintains high code coverage with dedicated automated testing suites in `backend/api/test/`:

@@ -1,7 +1,35 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Search, Sparkles, Stethoscope, Building2, TestTube2, Home, Star, ShieldCheck, MapPin, ArrowRight } from 'lucide-react';
+import { Search, Sparkles, Stethoscope, Building2, TestTube2, Home, Star, ShieldCheck, MapPin, ArrowRight, Activity } from 'lucide-react';
+import { apiClient, ProviderItem } from '@/lib/api';
 
 export default function HomePage() {
+  const [featuredProviders, setFeaturedProviders] = useState<ProviderItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    apiClient
+      .getProviders({ sortBy: 'score' })
+      .then((data) => {
+        if (isMounted && Array.isArray(data)) {
+          setFeaturedProviders(data.slice(0, 3));
+        }
+      })
+      .catch(() => {
+        // Ignore fetch errors gracefully
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   return (
     <div className="space-y-12">
       {/* Hero Section */}
@@ -32,10 +60,10 @@ export default function HomePage() {
               Describe Symptoms with AI
             </Link>
             <Link
-              href="/services"
+              href="/recommendations"
               className="px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-sm border border-white/20 backdrop-blur-md transition-all"
             >
-              Browse All Services
+              Browse All Providers
             </Link>
           </div>
         </div>
@@ -57,9 +85,10 @@ export default function HomePage() {
             { title: 'Diagnostic Labs', icon: TestTube2, color: 'from-teal-500 to-emerald-600', count: '5 Accredited Labs', type: 'DIAGNOSTIC_CENTER' },
             { title: 'Home Care Services', icon: Home, color: 'from-indigo-500 to-brand-600', count: '5 Home Care Agencies', type: 'HOME_CARE' },
           ].map((cat, i) => (
-            <div
+            <Link
               key={i}
-              className="group p-6 rounded-2xl bg-white border border-slate-200 hover:border-brand-500/40 hover:shadow-lg transition-all cursor-pointer"
+              href={`/recommendations?type=${cat.type}`}
+              className="group p-6 rounded-2xl bg-white border border-slate-200 hover:border-brand-500/40 hover:shadow-lg transition-all cursor-pointer block"
             >
               <div className={`w-12 h-12 rounded-xl bg-gradient-to-tr ${cat.color} flex items-center justify-center text-white mb-4 shadow-md group-hover:scale-110 transition-transform`}>
                 <cat.icon className="w-6 h-6" />
@@ -69,7 +98,7 @@ export default function HomePage() {
               <div className="flex items-center gap-1 text-brand-700 font-semibold text-xs group-hover:gap-2 transition-all">
                 Browse Providers <ArrowRight className="w-3.5 h-3.5" />
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       </section>
@@ -86,57 +115,65 @@ export default function HomePage() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {[
-            { id: '1', name: 'Dr. Aris Thorne', specialty: 'Cardiology', city: 'New York, NY', rating: 4.9, reviews: 128, fee: '$150', score: 96, image: '👨‍⚕️' },
-            { id: '2', name: 'Dr. Elena Rostova', specialty: 'General Medicine', city: 'New York, NY', rating: 4.8, reviews: 94, fee: '$80', score: 94, image: '👩‍⚕️' },
-            { id: '3', name: 'MetroHealth Medical Center', specialty: 'Multi-Specialty Hospital', city: 'New York, NY', rating: 4.8, reviews: 520, fee: '$200', score: 92, image: '🏥' },
-          ].map((provider) => (
-            <div key={provider.id} className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
-              <div>
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-2xl border border-slate-200">
-                      {provider.image}
+        {loading ? (
+          <div className="p-12 text-center space-y-2 bg-white rounded-2xl border border-slate-200">
+            <Activity className="w-6 h-6 text-brand-600 animate-spin mx-auto" />
+            <p className="text-xs font-semibold text-slate-600">Loading top rated providers...</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {featuredProviders.map((provider) => {
+              const primarySpecialty = provider.specialties?.[0]?.specialty?.name || provider.type;
+              const avatar = provider.type === 'HOSPITAL' ? '🏥' : provider.type === 'DIAGNOSTIC_CENTER' ? '🔬' : provider.type === 'HOME_CARE' ? '🏡' : '👨‍⚕️';
+
+              return (
+                <div key={provider.id} className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-2xl border border-slate-200">
+                          {avatar}
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-slate-900 text-base">{provider.name}</h3>
+                          <p className="text-xs font-medium text-teal-700">{primarySpecialty}</p>
+                        </div>
+                      </div>
+                      <span className="px-2.5 py-1 rounded-full bg-brand-50 text-brand-700 font-bold text-xs border border-brand-200">
+                        Score: {provider.matchScore || 95}
+                      </span>
                     </div>
+
+                    <div className="space-y-2 text-xs text-slate-600 mb-6">
+                      <div className="flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                        {provider.city ? `${provider.city}, ${provider.state}` : 'New York, NY'}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                        <span className="font-semibold text-slate-900">{provider.rating}</span>
+                        <span>({provider.reviewCount} reviews)</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
                     <div>
-                      <h3 className="font-bold text-slate-900 text-base">{provider.name}</h3>
-                      <p className="text-xs font-medium text-teal-700">{provider.specialty}</p>
+                      <span className="text-xs text-slate-400">Consultation Fee</span>
+                      <p className="font-bold text-slate-900 text-base">${provider.consultationFee}</p>
                     </div>
-                  </div>
-                  <span className="px-2.5 py-1 rounded-full bg-brand-50 text-brand-700 font-bold text-xs border border-brand-200">
-                    Score: {provider.score}
-                  </span>
-                </div>
-
-                <div className="space-y-2 text-xs text-slate-600 mb-6">
-                  <div className="flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                    {provider.city}
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-                    <span className="font-semibold text-slate-900">{provider.rating}</span>
-                    <span>({provider.reviews} reviews)</span>
+                    <Link
+                      href={`/providers/${provider.id}`}
+                      className="px-4 py-2 rounded-lg bg-brand-700 hover:bg-brand-800 text-white text-xs font-semibold shadow-sm transition-all"
+                    >
+                      Book Slot
+                    </Link>
                   </div>
                 </div>
-              </div>
-
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-                <div>
-                  <span className="text-xs text-slate-400">Consultation Fee</span>
-                  <p className="font-bold text-slate-900 text-base">{provider.fee}</p>
-                </div>
-                <Link
-                  href={`/providers/${provider.id}`}
-                  className="px-4 py-2 rounded-lg bg-brand-700 hover:bg-brand-800 text-white text-xs font-semibold shadow-sm transition-all"
-                >
-                  Book Slot
-                </Link>
-              </div>
-            </div>
-          ))}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {/* Trust & Transparency Feature Banner */}
